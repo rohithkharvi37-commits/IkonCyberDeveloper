@@ -35,7 +35,7 @@ def login():
     if "lockout_time" not in session:
         session["lockout_time"] = 0
 
-    # 15-second lockout check for Login
+ 
     current_time = time.time()
     lockout_duration = 15
     if current_time - session["lockout_time"] < lockout_duration:
@@ -57,7 +57,7 @@ def login():
             # --- UNUSUAL LOGIN TIME CHECK ---
             current_hour = datetime.now().hour
             # Define unusual hours as late night (Between 10 PM / 22:00 and 6 AM / 06:00)
-            is_unusual_time = (current_hour >= 10 or current_hour < 18)
+            is_unusual_time = (current_hour >= 22 or current_hour < 6)
             
             if is_unusual_time:
                 try:
