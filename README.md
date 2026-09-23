@@ -45,10 +45,7 @@ At present, <strong>Login After Dark</strong> uses two-factor protection:
 </ul><p>
 Both authentication steps have protection against repeated incorrect attempts.
 This provides an additional layer of security against unauthorized access.
-</p><h2>🤖 AI Used</h2><p>
-The project uses <strong>Google Gemini AI</strong> to add AI-powered functionality
-and demonstrate the integration of modern AI technology into a web application.
-</p><h2>🛠️ Technologies Used</h2><table>
+<table>
   <tr>
     <th>Technology</th>
     <th>Usage</th>
