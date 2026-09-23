@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>OTP Verification - Team Ikon</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
+        body { background-color: #000000; color: #ffffff; display: flex; flex-direction: column; min-height: 100vh; }
+        header { background-color: #000000; padding: 20px; border-bottom: 2px solid #ffcc00; }
+        header h1 { color: #ffcc00; font-size: 1.5rem; }
+        .main-content { flex: 1; display: flex; justify-content: center; align-items: center; }
+        .box { width: 320px; padding: 30px; background-color: #111111; border: 1px solid #333333; border-radius: 6px; }
+        .box h2 { margin-bottom: 10px; color: #ffffff; }
+        .box p { color: #888; font-size: 0.85rem; margin-bottom: 20px; }
+        label { display: block; margin-bottom: 5px; color: #ffcc00; font-size: 0.9rem; }
+        input { width: 100%; padding: 10px; margin-bottom: 15px; background-color: #000000; border: 1px solid #444444; color: #ffffff; border-radius: 4px; letter-spacing: 2px; text-align: center; font-size: 1.2rem;}
+        input:focus { border-color: #ffcc00; outline: none; }
+        button { width: 100%; padding: 10px; background-color: #ffcc00; color: #000000; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #e6b800; }
+        footer { background-color: #000000; text-align: center; padding: 15px; border-top: 1px solid #333333; color: #888888; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>IkonCyberDeveloper</h1>
+    </header>
+
+    <div class="main-content">
+        <div class="box">
+            <h2>Enter OTP</h2>
+            <p>Check your email inbox for the verification code.</p>
+            <form action="/otp" method="POST">
+                <label>6-Digit Code:</label>
+                <input type="text" name="otp" required maxlength="6" placeholder="------">
+                <button type="submit">Verify OTP</button>
+            </form>
+        </div>
+    </div>
+
+    <footer>
+        <p>This is developed by team Ikon</p>
+    </footer>
+
+</body>
+</html>
