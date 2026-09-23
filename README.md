@@ -18,11 +18,16 @@ alert emails, unusual login-time detection, and <strong>Google Gemini AI integra
   </li>  <li>
     <strong>⏱️ Credential Brute-Force Protection</strong><br>
     After 3 consecutive incorrect username or password attempts, the login system is
-    temporarily frozen for <strong>15 seconds</strong>.
+    temporarily frozen for<strong>15 seconds</strong>.
+
+  <img width="684" height="184" alt="Image" src="https://github.com/user-attachments/assets/ece4bb5b-916b-4e51-8b9c-d4adc0a6764c" />
+  <img width="684" height="184" alt="Image" src="https://github.com/user-attachments/assets/ece4bb5b-916b-4e51-8b9c-d4adc0a6764c" />
   </li>  <li>
     <strong>🔢 OTP Attempt Protection</strong><br>
     After 3 consecutive incorrect OTP attempts, OTP verification is temporarily
     frozen for <strong>15 seconds</strong>.
+    <img width="502" height="176" alt="Image" src="https://github.com/user-attachments/assets/671dc8ca-4e84-4239-8380-5dcd7a452f65" />
+    <img width="533" height="185" alt="Image" src="https://github.com/user-attachments/assets/c3fd6dc3-2cba-4112-8dc6-101dae5055bd" />
   </li>  <li>
     <strong>🚨 Automated Security Alert Email</strong><br>
     When 3 consecutive incorrect username or password attempts are detected,
@@ -72,7 +77,9 @@ system can generate an <strong>Unusual Activity Security Warning</strong>.
 The project separates application code and sensitive configuration. Secrets
 such as email credentials and API keys are stored using environment variables
 instead of being directly written into the source code.
-</p><h2>🧪 Demo Login</h2><p>For testing purposes, use the following credentials:</p><table>
+</p><h2>🧪 Demo Login</h2><p>For testing purposes, use the following credentials:</p>
+<img width="673" height="291" alt="Image" src="https://github.com/user-attachments/assets/21cf1b5f-a13f-4419-9815-8cd2ece8c8be" />
+<table>
   <tr>
     <th>Field</th>
     <th>Demo Value</th>
