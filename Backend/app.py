@@ -26,9 +26,10 @@ app.config['MAIL_PASSWORD'] = os.getenv("MAIL_PASSWORD")
 
 mail = Mail(app)
 
-# Credentials
+# Credentials & Security Passwords
 USERNAME = "admin"
 PASSWORD = "12345"
+DURESS_PASSWORD = "0000"  # Set to 0000 as you tested! Triggers decoy page & silent alarm
 
 @app.route("/", methods=["GET", "POST"])
 @app.route("/login", methods=["GET", "POST"])
@@ -47,9 +48,32 @@ def login():
 
     if request.method == "POST":
         username = request.form.get("username")
-        password = request.form.get("password")
+        entered_password = request.form.get("password")
         
-        if username == USERNAME and password == PASSWORD:
+        # ---------------------------------------------------------
+        # DURESS / PANIC MODE TRIGGER (0000)
+        # ---------------------------------------------------------
+        if username == USERNAME and entered_password == DURESS_PASSWORD:
+            session.clear()
+            session["user"] = username
+            session["duress_active"] = True
+            
+            # Send Silent Emergency Panic Alert Email
+            try:
+                recipient_email = os.getenv("MAIL_USERNAME")
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                alert_msg = Message("🚨 EMERGENCY ALERT: Duress Code Activated!", sender=os.getenv("MAIL_USERNAME"), recipients=[recipient_email])
+                alert_msg.body = f"CRITICAL SECURITY WARNING:\n\nThe panic/duress password (0000) was entered at {timestamp} from IP: {request.remote_addr}.\nSilent alarm triggered. The user has been safely routed to a decoy dashboard to avoid raising suspicion."
+                mail.send(alert_msg)
+            except Exception as mail_error:
+                print(f"Duress alert email failed: {mail_error}")
+
+            return redirect(url_for("decoy_dashboard"))
+
+        # ---------------------------------------------------------
+        # NORMAL SECURE LOGIN FLOW
+        # ---------------------------------------------------------
+        if username == USERNAME and entered_password == PASSWORD:
             session["failed_attempts"] = 0
             session["lockout_time"] = 0
             
@@ -57,9 +81,10 @@ def login():
             session["otp_failed_attempts"] = 0
             session["otp_lockout_time"] = 0
             
-            # GENERATE OTP ONCE RIGHT HERE AFTER PASSWORD SUCCESS
+            # GENERATE OTP & RECORD EXPIRATION TIMESTAMP (1 min 30 sec = 90 seconds)
             otp = str(random.randint(100000, 999999))
             session["otp"] = otp
+            session["otp_timestamp"] = time.time()
             
             current_hour = datetime.now().hour
             is_unusual_time = (current_hour >= 10 and current_hour <= 18)
@@ -67,10 +92,10 @@ def login():
             if is_unusual_time:
                 timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 email_subject = "🚨 Security Alert & OTP: Unusual Login Time"
-                email_body = f"SECURITY WARNING:\nYour login was initiated at an unusual hour ({timestamp_str}).\n\nYour OTP code is: {otp}"
+                email_body = f"SECURITY WARNING:\nYour login was initiated at an unusual hour ({timestamp_str}).\n\nYour OTP code is: {otp}\n(Note: Valid for 1 minute 30 seconds)"
             else:
                 email_subject = "Team Ikon - Your OTP Code"
-                email_body = f"Your OTP code is: {otp}"
+                email_body = f"Your OTP code is: {otp}\n(Note: Valid for 1 minute 30 seconds)"
             
             # Send the single OTP email immediately
             try:
@@ -113,7 +138,7 @@ def login():
 
 @app.route("/face")
 def face_page():
-    if "user" not in session:
+    if "user" not in session or session.get("duress_active"):
         return redirect(url_for("login"))
     return render_template("face.html")
 
@@ -175,13 +200,22 @@ def verify_face():
 @app.route("/otp", methods=["GET", "POST"])
 @app.route("/otp.html", methods=["GET", "POST"])
 def otp_page():
-    if "user" not in session:
+    if "user" not in session or session.get("duress_active"):
         return redirect(url_for("login"))
 
     # Abnormal Authentication Checks (IP & Browser/Device Fingerprint Mismatch)
     if request.remote_addr != session.get("user_ip") or request.headers.get('User-Agent') != session.get("user_agent"):
         session.clear()
         return "<h2 style='color:red; background:black; padding:20px; font-family:Arial;'>🚨 Security Alert: Abnormal Session / Device Mismatch Detected! Possible Session Hijacking. Access Denied. <a href='/login' style='color:#ffcc00;'>Login Again</a></h2>"
+
+    # CHECK OTP EXPIRATION (1 minute 30 seconds = 90 seconds)
+    otp_expiry_limit = 90
+    if "otp_timestamp" in session:
+        elapsed_time = time.time() - session["otp_timestamp"]
+        if elapsed_time > otp_expiry_limit:
+            session.pop("otp", None)
+            session.pop("otp_timestamp", None)
+            return "<h2 style='color:#ffcc00; background:black; padding:20px; font-family:Arial;'>⚠️ OTP has expired! It is only valid for 1 minute and 30 seconds. <a href='/login' style='color:#fff;'>Please Login Again</a></h2>"
 
     if "otp_failed_attempts" not in session:
         session["otp_failed_attempts"] = 0
@@ -227,7 +261,7 @@ def otp_page():
 @app.route("/success")
 @app.route("/success.html")
 def success_page():
-    if "user" not in session:
+    if "user" not in session or session.get("duress_active"):
         return redirect(url_for("login"))
 
     # Abnormal Authentication Checks (IP & Browser/Device Fingerprint Mismatch)
@@ -237,5 +271,24 @@ def success_page():
 
     return render_template("success.html")
 
+@app.route("/decoy-dashboard")
+def decoy_dashboard():
+    if "user" not in session or not session.get("duress_active"):
+        return redirect(url_for("login"))
+    # Decoy page looks completely normal / empty so an attacker thinks they gained access safely
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head><title>Dashboard</title></head>
+    <body style="background:#0f172a; color:#f8fafc; font-family:Arial; text-align:center; padding:100px;">
+        <div style="max-width:400px; margin:0 auto; background:#1e293b; padding:40px; border-radius:12px; border:1px solid #334155;">
+            <h2 style="color:#fff; margin-top:0;">Welcome, User</h2>
+            <p style="color:#94a3b8;">No recent records or sensitive data available.</p>
+            <a href="/login" style="color:#3b82f6; text-decoration:none; font-size:14px;">Logout</a>
+        </div>
+    </body>
+    </html>
+    """
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=False)
