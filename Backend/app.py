@@ -54,6 +54,21 @@ def login():
             session["otp_failed_attempts"] = 0
             session["otp_lockout_time"] = 0
             
+            # --- UNUSUAL LOGIN TIME CHECK ---
+            current_hour = datetime.now().hour
+            # Define unusual hours as late night (Between 10 PM / 22:00 and 6 AM / 06:00)
+            is_unusual_time = (current_hour >= 10 or current_hour < 18)
+            
+            if is_unusual_time:
+                try:
+                    recipient_email = os.getenv("MAIL_USERNAME")
+                    timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    unusual_msg = Message("🚨 Security Alert: Unusual Login Time Detected", sender=os.getenv("MAIL_USERNAME"), recipients=[recipient_email])
+                    unusual_msg.body = f"SECURITY WARNING:\n\nA successful password entry was recorded at an unusual hour: {timestamp_str}.\nIf this was not you, please secure your account immediately."
+                    mail.send(unusual_msg)
+                except Exception as mail_error:
+                    print(f"Unusual time alert email failed: {mail_error}")
+
             # Generate 6-digit OTP
             otp = str(random.randint(100000, 999999))
             session["otp"] = otp
@@ -79,7 +94,7 @@ def login():
                     recipient_email = os.getenv("MAIL_USERNAME")
                     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     alert_msg = Message("🚨 Security Alert: Multiple Failed Login Attempts", sender=os.getenv("MAIL_USERNAME"), recipients=[recipient_email])
-                    alert_msg.body = f"SECURITY WARNING:\n\nYour login system detected 3 consecutive failed password attempts at {timestamp}.\nThe IP/user has been locked out for 15 seconds."
+                    alert_msg.body = f"SECURITY WARNING:\n\nYour login system detected 3 consecutive failed password attempts at {timestamp}.\nThe system has been locked out for 15 seconds."
                     mail.send(alert_msg)
                 except Exception as mail_error:
                     print(f"Alert email failed: {mail_error}")
