@@ -95,6 +95,7 @@ instead of being directly written into the source code.
 </table><p>
 After successful credential verification, an OTP is sent to the registered
 email address. The user must enter the correct OTP to complete authentication.
+  <img width="691" height="269" alt="Image" src="https://github.com/user-attachments/assets/1d45dc37-e5c2-4fdb-b2ca-7d1d9174d893" />
 </p><h2>🔑 Authentication Flow</h2><ol>
   <li>The user opens the login page.</li>
   <li>The user enters their username and password.</li>
