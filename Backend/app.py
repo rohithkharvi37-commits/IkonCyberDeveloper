@@ -57,7 +57,7 @@ def login():
             session["otp_failed_attempts"] = 0
             session["otp_lockout_time"] = 0
             
-            # 1. GENERATE OTP ONCE RIGHT HERE AFTER PASSWORD SUCCESS
+            # GENERATE OTP ONCE RIGHT HERE AFTER PASSWORD SUCCESS
             otp = str(random.randint(100000, 999999))
             session["otp"] = otp
             
@@ -81,8 +81,9 @@ def login():
             except Exception as mail_error:
                 print(f"OTP email failed: {mail_error}")
 
-            # Bind the user's IP address to prevent session hijacking
+            # Abnormal Authentication & Session Binding: Bind IP Address & Device Fingerprint
             session["user_ip"] = request.remote_addr
+            session["user_agent"] = request.headers.get('User-Agent')
             session["user"] = username
             
             # Redirect to Biometric Face Authentication step
@@ -164,10 +165,8 @@ def verify_face():
 
         # Threshold for matching
         if similarity > 0.35:
-            # Face matches! Proceed to OTP screen using the pre-existing session OTP
             return jsonify({"success": True})
         else:
-            # Face failed. NO new emails are sent, NO new OTPs are generated. Just retry!
             return jsonify({"success": False, "message": f"Access Denied: Face does not match owner profile! (Score: {similarity:.2f})"})
             
     except Exception as e:
@@ -179,10 +178,10 @@ def otp_page():
     if "user" not in session:
         return redirect(url_for("login"))
 
-    # IP Address Security Check
-    if request.remote_addr != session.get("user_ip"):
+    # Abnormal Authentication Checks (IP & Browser/Device Fingerprint Mismatch)
+    if request.remote_addr != session.get("user_ip") or request.headers.get('User-Agent') != session.get("user_agent"):
         session.clear()
-        return "<h2 style='color:red; background:black; padding:20px; font-family:Arial;'>🚨 Security Alert: IP Address Mismatch Detected! Possible Session Hijacking. Access Denied. <a href='/login' style='color:#ffcc00;'>Login Again</a></h2>"
+        return "<h2 style='color:red; background:black; padding:20px; font-family:Arial;'>🚨 Security Alert: Abnormal Session / Device Mismatch Detected! Possible Session Hijacking. Access Denied. <a href='/login' style='color:#ffcc00;'>Login Again</a></h2>"
 
     if "otp_failed_attempts" not in session:
         session["otp_failed_attempts"] = 0
@@ -231,10 +230,10 @@ def success_page():
     if "user" not in session:
         return redirect(url_for("login"))
 
-    # IP Address Security Check
-    if request.remote_addr != session.get("user_ip"):
+    # Abnormal Authentication Checks (IP & Browser/Device Fingerprint Mismatch)
+    if request.remote_addr != session.get("user_ip") or request.headers.get('User-Agent') != session.get("user_agent"):
         session.clear()
-        return "<h2 style='color:red; background:black; padding:20px; font-family:Arial;'>🚨 Security Alert: IP Address Mismatch Detected! Possible Session Hijacking. Access Denied. <a href='/login' style='color:#ffcc00;'>Login Again</a></h2>"
+        return "<h2 style='color:red; background:black; padding:20px; font-family:Arial;'>🚨 Security Alert: Abnormal Session / Device Mismatch Detected! Possible Session Hijacking. Access Denied. <a href='/login' style='color:#ffcc00;'>Login Again</a></h2>"
 
     return render_template("success.html")
 
