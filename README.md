@@ -15,6 +15,7 @@ alert emails, unusual login-time detection, and <strong>Google Gemini AI integra
     <strong>🔐 Two-Factor Authentication (2FA)</strong><br>
     The system verifies the user's username and password first and then requires an
     OTP sent to the registered email address.
+<img width="678" height="287" alt="Image" src="https://github.com/user-attachments/assets/ae7c807e-43bc-4c2d-9552-83c9a9629939"  />
   </li>  <li>
     <strong>⏱️ Credential Brute-Force Protection</strong><br>
     After 3 consecutive incorrect username or password attempts, the login system is
