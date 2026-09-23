@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Biometric Face Authentication - Team Ikon</title>
+    <style>
+        body { 
+            background: #0f172a; 
+            color: #f8fafc; 
+            font-family: Arial, sans-serif; 
+            text-align: center; 
+            padding-top: 50px; 
+        }
+        .card { 
+            background: #1e293b; 
+            padding: 30px; 
+            border-radius: 12px; 
+            display: inline-block; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5); 
+        }
+        video, canvas { 
+            border-radius: 8px; 
+            border: 2px solid #3b82f6; 
+            margin-bottom: 15px; 
+        }
+        button { 
+            background: #3b82f6; 
+            color: white; 
+            border: none; 
+            padding: 12px 24px; 
+            font-size: 16px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-weight: bold; 
+        }
+        button:hover { 
+            background: #2563eb; 
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>🛡️ Biometric Face Verification</h2>
+        <p>Position your face clearly in front of the camera</p>
+        
+        <video id="webcam" width="320" height="240" autoplay></video>
+        <br>
+        <button onclick="captureFace()">Verify Face & Continue</button>
+        <canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
+    </div>
+
+    <script>
+        const video = document.getElementById('webcam');
+        
+        // Access laptop webcam
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => { 
+                video.srcObject = stream; 
+            })
+            .catch(err => { 
+                alert("Webcam access denied or unavailable! Please check browser permissions."); 
+            });
+
+        function captureFace() {
+            const canvas = document.getElementById('canvas');
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, 320, 240);
+            
+            // Convert webcam snapshot to base64 data URL
+            const imageData = canvas.toDataURL('image/jpeg');
+
+            // Send to Flask backend for owner comparison
+            fetch('/verify-face', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: imageData })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Face matches owner! Proceed to OTP screen
+                    window.location.href = "/otp";
+                } else {
+                    alert("❌ Authentication Failed: " + data.message);
+                }
+            })
+            .catch(error => {
+                alert("Server error during face verification: " + error);
+            });
+        }
+    </script>
+</body>
+</html>

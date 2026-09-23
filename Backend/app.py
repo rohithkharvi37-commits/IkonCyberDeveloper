@@ -1,8 +1,11 @@
 import os
 import random
 import time
+import base64
+import cv2
+import numpy as np
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from flask_mail import Mail, Message
 from dotenv import load_dotenv
 
@@ -50,41 +53,40 @@ def login():
             session["failed_attempts"] = 0
             session["lockout_time"] = 0
             
-            # Reset OTP tracking when a fresh login succeeds
+            # Reset OTP tracking variables
             session["otp_failed_attempts"] = 0
             session["otp_lockout_time"] = 0
             
-            # --- IP ADDRESS BINDING ---
-            session["user_ip"] = request.remote_addr
-            
-            # 1. Generate 6-digit OTP first
+            # 1. GENERATE OTP ONCE RIGHT HERE AFTER PASSWORD SUCCESS
             otp = str(random.randint(100000, 999999))
             session["otp"] = otp
-            session["user"] = username
             
-            # 2. Check Unusual Time and Build ONE Combined Message
             current_hour = datetime.now().hour
             is_unusual_time = (current_hour >= 10 and current_hour <= 18)
             
             if is_unusual_time:
-                session["unusual_warning"] = True
                 timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 email_subject = "🚨 Security Alert & OTP: Unusual Login Time"
-                email_body = f"SECURITY WARNING:\nA successful login was recorded at an unusual hour ({timestamp_str}).\n\nYour login verification OTP code is: {otp}"
+                email_body = f"SECURITY WARNING:\nYour login was initiated at an unusual hour ({timestamp_str}).\n\nYour OTP code is: {otp}"
             else:
-                session["unusual_warning"] = False
                 email_subject = "Team Ikon - Your OTP Code"
-                email_body = f"Your login verification OTP code is: {otp}"
+                email_body = f"Your OTP code is: {otp}"
             
-            # 3. Send ONLY ONE email
+            # Send the single OTP email immediately
             try:
                 recipient_email = os.getenv("MAIL_USERNAME") 
                 msg = Message(email_subject, sender=os.getenv("MAIL_USERNAME"), recipients=[recipient_email])
                 msg.body = email_body
                 mail.send(msg)
-                return redirect(url_for("otp_page"))
-            except Exception as e:
-                return f"<h2 style='color:red; background:black; padding:20px;'>Email Error: {e} <a href='/login'>Try Again</a></h2>"
+            except Exception as mail_error:
+                print(f"OTP email failed: {mail_error}")
+
+            # Bind the user's IP address to prevent session hijacking
+            session["user_ip"] = request.remote_addr
+            session["user"] = username
+            
+            # Redirect to Biometric Face Authentication step
+            return redirect(url_for("face_page"))
         else:
             session["failed_attempts"] += 1
             attempts_left = 3 - session["failed_attempts"]
@@ -108,13 +110,76 @@ def login():
             
     return render_template("login.html")
 
+@app.route("/face")
+def face_page():
+    if "user" not in session:
+        return redirect(url_for("login"))
+    return render_template("face.html")
+
+@app.route("/verify-face", methods=["POST"])
+def verify_face():
+    if "user" not in session:
+        return jsonify({"success": False, "message": "Unauthorized session"})
+
+    try:
+        data = request.get_json(silent=True)
+        if not data or "image" not in data:
+            return jsonify({"success": False, "message": "Invalid or missing JSON payload!"})
+
+        img_string = data["image"]
+        img_data = img_string.split(",")[1] if "," in img_string else img_string
+        
+        # Decode live webcam image from base64
+        np_arr = np.frombuffer(base64.b64decode(img_data), np.uint8)
+        live_img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        
+        if live_img is None:
+            return jsonify({"success": False, "message": "Failed to decode webcam image frame."})
+
+        # Load the Master Owner Image (owner.jpg)
+        owner_path = os.path.join(BASE_DIR, "owner.jpg")
+        if not os.path.exists(owner_path):
+            return jsonify({"success": False, "message": "Master face photo (owner.jpg) not found in Backend folder!"})
+
+        owner_img = cv2.imread(owner_path)
+        if owner_img is None:
+            return jsonify({"success": False, "message": "Could not read owner.jpg image file."})
+
+        # Resize both images to standard dimensions (200x200) for direct comparison
+        live_resized = cv2.resize(live_img, (200, 200))
+        owner_resized = cv2.resize(owner_img, (200, 200))
+
+        # Convert to grayscale
+        live_gray = cv2.cvtColor(live_resized, cv2.COLOR_BGR2GRAY)
+        owner_gray = cv2.cvtColor(owner_resized, cv2.COLOR_BGR2GRAY)
+
+        # Mathematically compare histograms
+        hist_live = cv2.calcHist([live_gray], [0], None, [256], [0, 256])
+        cv2.normalize(hist_live, hist_live, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
+
+        hist_owner = cv2.calcHist([owner_gray], [0], None, [256], [0, 256])
+        cv2.normalize(hist_owner, hist_owner, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
+
+        similarity = cv2.compareHist(hist_owner, hist_live, cv2.HISTCMP_CORREL)
+
+        # Threshold for matching
+        if similarity > 0.35:
+            # Face matches! Proceed to OTP screen using the pre-existing session OTP
+            return jsonify({"success": True})
+        else:
+            # Face failed. NO new emails are sent, NO new OTPs are generated. Just retry!
+            return jsonify({"success": False, "message": f"Access Denied: Face does not match owner profile! (Score: {similarity:.2f})"})
+            
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
 @app.route("/otp", methods=["GET", "POST"])
 @app.route("/otp.html", methods=["GET", "POST"])
 def otp_page():
     if "user" not in session:
         return redirect(url_for("login"))
 
-    # --- IP ADDRESS SECURITY CHECK ---
+    # IP Address Security Check
     if request.remote_addr != session.get("user_ip"):
         session.clear()
         return "<h2 style='color:red; background:black; padding:20px; font-family:Arial;'>🚨 Security Alert: IP Address Mismatch Detected! Possible Session Hijacking. Access Denied. <a href='/login' style='color:#ffcc00;'>Login Again</a></h2>"
@@ -166,7 +231,7 @@ def success_page():
     if "user" not in session:
         return redirect(url_for("login"))
 
-    # --- IP ADDRESS SECURITY CHECK ---
+    # IP Address Security Check
     if request.remote_addr != session.get("user_ip"):
         session.clear()
         return "<h2 style='color:red; background:black; padding:20px; font-family:Arial;'>🚨 Security Alert: IP Address Mismatch Detected! Possible Session Hijacking. Access Denied. <a href='/login' style='color:#ffcc00;'>Login Again</a></h2>"
