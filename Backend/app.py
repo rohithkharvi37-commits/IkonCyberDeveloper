@@ -29,13 +29,12 @@ PASSWORD = "12345"
 @app.route("/", methods=["GET", "POST"])
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    # Initialize session tracking for failed attempts if not present
     if "failed_attempts" not in session:
         session["failed_attempts"] = 0
     if "lockout_time" not in session:
         session["lockout_time"] = 0
 
-    # Check if user is currently locked out
+    # 15-second lockout check
     current_time = time.time()
     lockout_duration = 15
     if current_time - session["lockout_time"] < lockout_duration:
@@ -47,7 +46,6 @@ def login():
         password = request.form.get("password")
         
         if username == USERNAME and password == PASSWORD:
-            # Reset failed attempts on success
             session["failed_attempts"] = 0
             session["lockout_time"] = 0
             
