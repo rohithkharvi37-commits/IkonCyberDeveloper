@@ -1,6 +1,7 @@
 import os
 import random
 import time
+from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_mail import Mail, Message
 from dotenv import load_dotenv
@@ -72,7 +73,18 @@ def login():
             
             if session["failed_attempts"] >= 3:
                 session["lockout_time"] = time.time()
-                return "<h2 style='color:red; background:black; padding:20px; font-family:Arial;'>❌ 3 failed login attempts! You are locked out for 15 seconds. <a href='/login' style='color:#ffcc00;'>Try Again</a></h2>"
+                
+                # Send Security Alert Email for Login Breach
+                try:
+                    recipient_email = os.getenv("MAIL_USERNAME")
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    alert_msg = Message("🚨 Security Alert: Multiple Failed Login Attempts", sender=os.getenv("MAIL_USERNAME"), recipients=[recipient_email])
+                    alert_msg.body = f"SECURITY WARNING:\n\nYour login system detected 3 consecutive failed password attempts at {timestamp}.\nThe IP/user has been locked out for 15 seconds."
+                    mail.send(alert_msg)
+                except Exception as mail_error:
+                    print(f"Alert email failed: {mail_error}")
+
+                return "<h2 style='color:red; background:black; padding:20px; font-family:Arial;'>❌ 3 failed login attempts! Security alert email sent. You are locked out for 15 seconds. <a href='/login' style='color:#ffcc00;'>Try Again</a></h2>"
             
             return f"<h2 style='color:red; background:black; padding:20px; font-family:Arial;'>❌ Invalid Credentials! Attempts left: {attempts_left}. <a href='/login' style='color:#ffcc00;'>Try Again</a></h2>"
             
@@ -108,7 +120,18 @@ def otp_page():
 
             if session["otp_failed_attempts"] >= 3:
                 session["otp_lockout_time"] = time.time()
-                return "<h2 style='color:red; background:black; padding:20px; font-family:Arial;'>❌ 3 failed OTP attempts! You are locked out for 15 seconds. <a href='/otp' style='color:#ffcc00;'>Try Again</a></h2>"
+                
+                # Send Security Alert Email for OTP Breach
+                try:
+                    recipient_email = os.getenv("MAIL_USERNAME")
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    alert_msg = Message("🚨 Security Alert: Multiple Failed OTP Attempts", sender=os.getenv("MAIL_USERNAME"), recipients=[recipient_email])
+                    alert_msg.body = f"SECURITY WARNING:\n\nYour system detected 3 consecutive failed OTP verification attempts at {timestamp}.\nThe session has been locked out for 15 seconds."
+                    mail.send(alert_msg)
+                except Exception as mail_error:
+                    print(f"OTP alert email failed: {mail_error}")
+
+                return "<h2 style='color:red; background:black; padding:20px; font-family:Arial;'>❌ 3 failed OTP attempts! Security alert email sent. You are locked out for 15 seconds. <a href='/otp' style='color:#ffcc00;'>Try Again</a></h2>"
 
             return f"<h2 style='color:red; background:black; padding:20px; font-family:Arial;'>❌ Invalid OTP! Attempts left: {attempts_left}. <a href='/otp' style='color:#ffcc00;'>Try Again</a></h2>"
             
