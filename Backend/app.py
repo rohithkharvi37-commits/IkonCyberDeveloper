@@ -35,7 +35,7 @@ def login():
     if "lockout_time" not in session:
         session["lockout_time"] = 0
 
- 
+    # 15-second lockout check for Login
     current_time = time.time()
     lockout_duration = 15
     if current_time - session["lockout_time"] < lockout_duration:
@@ -54,30 +54,33 @@ def login():
             session["otp_failed_attempts"] = 0
             session["otp_lockout_time"] = 0
             
-            # --- UNUSUAL LOGIN TIME CHECK ---
-            current_hour = datetime.now().hour
-            # Define unusual hours as late night (Between 10 PM / 22:00 and 6 AM / 06:00)
-            is_unusual_time = (current_hour >= 22 or current_hour < 6)
+            # --- IP ADDRESS BINDING ---
+            session["user_ip"] = request.remote_addr
             
-            if is_unusual_time:
-                try:
-                    recipient_email = os.getenv("MAIL_USERNAME")
-                    timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    unusual_msg = Message("🚨 Security Alert: Unusual Login Time Detected", sender=os.getenv("MAIL_USERNAME"), recipients=[recipient_email])
-                    unusual_msg.body = f"SECURITY WARNING:\n\nA successful password entry was recorded at an unusual hour: {timestamp_str}.\nIf this was not you, please secure your account immediately."
-                    mail.send(unusual_msg)
-                except Exception as mail_error:
-                    print(f"Unusual time alert email failed: {mail_error}")
-
-            # Generate 6-digit OTP
+            # 1. Generate 6-digit OTP first
             otp = str(random.randint(100000, 999999))
             session["otp"] = otp
             session["user"] = username
             
+            # 2. Check Unusual Time and Build ONE Combined Message
+            current_hour = datetime.now().hour
+            is_unusual_time = (current_hour >= 10 and current_hour <= 18)
+            
+            if is_unusual_time:
+                session["unusual_warning"] = True
+                timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                email_subject = "🚨 Security Alert & OTP: Unusual Login Time"
+                email_body = f"SECURITY WARNING:\nA successful login was recorded at an unusual hour ({timestamp_str}).\n\nYour login verification OTP code is: {otp}"
+            else:
+                session["unusual_warning"] = False
+                email_subject = "Team Ikon - Your OTP Code"
+                email_body = f"Your login verification OTP code is: {otp}"
+            
+            # 3. Send ONLY ONE email
             try:
                 recipient_email = os.getenv("MAIL_USERNAME") 
-                msg = Message("Team Ikon - Your OTP Code", sender=os.getenv("MAIL_USERNAME"), recipients=[recipient_email])
-                msg.body = f"Your login verification OTP code is: {otp}"
+                msg = Message(email_subject, sender=os.getenv("MAIL_USERNAME"), recipients=[recipient_email])
+                msg.body = email_body
                 mail.send(msg)
                 return redirect(url_for("otp_page"))
             except Exception as e:
@@ -110,6 +113,11 @@ def login():
 def otp_page():
     if "user" not in session:
         return redirect(url_for("login"))
+
+    # --- IP ADDRESS SECURITY CHECK ---
+    if request.remote_addr != session.get("user_ip"):
+        session.clear()
+        return "<h2 style='color:red; background:black; padding:20px; font-family:Arial;'>🚨 Security Alert: IP Address Mismatch Detected! Possible Session Hijacking. Access Denied. <a href='/login' style='color:#ffcc00;'>Login Again</a></h2>"
 
     if "otp_failed_attempts" not in session:
         session["otp_failed_attempts"] = 0
@@ -157,6 +165,12 @@ def otp_page():
 def success_page():
     if "user" not in session:
         return redirect(url_for("login"))
+
+    # --- IP ADDRESS SECURITY CHECK ---
+    if request.remote_addr != session.get("user_ip"):
+        session.clear()
+        return "<h2 style='color:red; background:black; padding:20px; font-family:Arial;'>🚨 Security Alert: IP Address Mismatch Detected! Possible Session Hijacking. Access Denied. <a href='/login' style='color:#ffcc00;'>Login Again</a></h2>"
+
     return render_template("success.html")
 
 if __name__ == "__main__":
