@@ -34,12 +34,12 @@ def login():
     if "lockout_time" not in session:
         session["lockout_time"] = 0
 
-    # 15-second lockout check
+    # 15-second lockout check for Login
     current_time = time.time()
     lockout_duration = 15
     if current_time - session["lockout_time"] < lockout_duration:
         remaining = int(lockout_duration - (current_time - session["lockout_time"]))
-        return f"<h2 style='color:#ffcc00; background:black; padding:20px; font-family:Arial;'>⚠️ Too many failed attempts! Locked out. Please try again in {remaining} seconds. <a href='/login' style='color:#fff;'>Refresh</a></h2>"
+        return f"<h2 style='color:#ffcc00; background:black; padding:20px; font-family:Arial;'>⚠️ Too many failed login attempts! Locked out. Please try again in {remaining} seconds. <a href='/login' style='color:#fff;'>Refresh</a></h2>"
 
     if request.method == "POST":
         username = request.form.get("username")
@@ -48,6 +48,10 @@ def login():
         if username == USERNAME and password == PASSWORD:
             session["failed_attempts"] = 0
             session["lockout_time"] = 0
+            
+            # Reset OTP tracking when a fresh login succeeds
+            session["otp_failed_attempts"] = 0
+            session["otp_lockout_time"] = 0
             
             # Generate 6-digit OTP
             otp = str(random.randint(100000, 999999))
@@ -68,7 +72,7 @@ def login():
             
             if session["failed_attempts"] >= 3:
                 session["lockout_time"] = time.time()
-                return "<h2 style='color:red; background:black; padding:20px; font-family:Arial;'>❌ 3 failed attempts! You are locked out for 15 seconds. <a href='/login' style='color:#ffcc00;'>Try Again</a></h2>"
+                return "<h2 style='color:red; background:black; padding:20px; font-family:Arial;'>❌ 3 failed login attempts! You are locked out for 15 seconds. <a href='/login' style='color:#ffcc00;'>Try Again</a></h2>"
             
             return f"<h2 style='color:red; background:black; padding:20px; font-family:Arial;'>❌ Invalid Credentials! Attempts left: {attempts_left}. <a href='/login' style='color:#ffcc00;'>Try Again</a></h2>"
             
@@ -77,12 +81,37 @@ def login():
 @app.route("/otp", methods=["GET", "POST"])
 @app.route("/otp.html", methods=["GET", "POST"])
 def otp_page():
+    if "user" not in session:
+        return redirect(url_for("login"))
+
+    if "otp_failed_attempts" not in session:
+        session["otp_failed_attempts"] = 0
+    if "otp_lockout_time" not in session:
+        session["otp_lockout_time"] = 0
+
+    # 15-second lockout check for OTP
+    current_time = time.time()
+    lockout_duration = 15
+    if current_time - session["otp_lockout_time"] < lockout_duration:
+        remaining = int(lockout_duration - (current_time - session["otp_lockout_time"]))
+        return f"<h2 style='color:#ffcc00; background:black; padding:20px; font-family:Arial;'>⚠️ Too many failed OTP attempts! Locked out. Please try again in {remaining} seconds. <a href='/otp' style='color:#fff;'>Refresh</a></h2>"
+
     if request.method == "POST":
         entered_otp = request.form.get("otp")
         if entered_otp == session.get("otp"):
+            session["otp_failed_attempts"] = 0
+            session["otp_lockout_time"] = 0
             return redirect(url_for("success_page"))
         else:
-            return "<h2 style='color:red; background:black; padding:20px; font-family:Arial;'>Invalid OTP! <a href='/otp'>Try Again</a></h2>"
+            session["otp_failed_attempts"] += 1
+            attempts_left = 3 - session["otp_failed_attempts"]
+
+            if session["otp_failed_attempts"] >= 3:
+                session["otp_lockout_time"] = time.time()
+                return "<h2 style='color:red; background:black; padding:20px; font-family:Arial;'>❌ 3 failed OTP attempts! You are locked out for 15 seconds. <a href='/otp' style='color:#ffcc00;'>Try Again</a></h2>"
+
+            return f"<h2 style='color:red; background:black; padding:20px; font-family:Arial;'>❌ Invalid OTP! Attempts left: {attempts_left}. <a href='/otp' style='color:#ffcc00;'>Try Again</a></h2>"
+            
     return render_template("otp.html")
 
 @app.route("/success")
